@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Toolbox</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; user-select: none; cursor: default; }
+  .card { position: relative; width: 560px; height: 340px; }
+  .card img { width: 560px; height: 340px; display: block; }
+  .bar { position: absolute; left: 52px; right: 70px; bottom: 74px; height: 14px; border: 3px solid #1f1b16; border-radius: 7px; overflow: hidden; background: #f3ede1; }
+  .bar div { height: 100%; background: repeating-linear-gradient(-45deg, #e2572b 0 10px, #c94a20 10px 20px); background-size: 28px 28px; animation: s .8s linear infinite; }
+  .label { position: absolute; left: 52px; bottom: 40px; font: 600 14px "Segoe UI", system-ui, sans-serif; color: #5e5547; }
+  @keyframes s { to { background-position: 28px 0; } }
+</style>
+</head>
+<body data-tauri-drag-region>
+  <div class="card" data-tauri-drag-region>
+    <img src="splash.png" alt="Toolbox" draggable="false">
+    <div class="bar"><div></div></div>
+    <div class="label">Chargement…</div>
+  </div>
+<script>
+  // Signale à Toolbox que l'écran de démarrage est affiché (après le premier rendu de l'image).
+  const img = document.querySelector("img");
+  const ready = () => requestAnimationFrame(() => requestAnimationFrame(() => window.__TAURI_INTERNALS__?.invoke("splash_shown")));
+  img.complete ? ready() : img.addEventListener("load", ready);
+</script>
+</body>
+</html>

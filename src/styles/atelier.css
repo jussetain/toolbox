@@ -1,0 +1,107 @@
+/* Direction artistique « Atelier » — tokens et primitives. */
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/jetbrains-mono";
+
+:root {
+  --paper: #f3ede1;
+  --paper-2: #ffffff;
+  --ink: #1f1b16;
+  --ink-2: #5e5547;
+  --line: 2px solid var(--ink);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 5px 5px 0 var(--ink);
+  --shadow-sm: 3px 3px 0 var(--ink);
+  --accent: #e2572b;
+  --select: #e9c24a;
+  --ok: #3a9a5b;
+  --font: "Bricolage Grotesque Variable", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono Variable", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+input, textarea, button, select { font-family: inherit; color: inherit; }
+textarea, input[type="text"], .selectable { user-select: text; }
+
+a { color: var(--ink); }
+
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Boutons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 15px; font-weight: 700; padding: 10px 16px; min-height: 44px;
+  background: var(--paper-2); border: var(--line); border-radius: var(--radius-sm);
+  cursor: pointer; transition: transform 80ms, box-shadow 80ms;
+}
+.btn:hover { box-shadow: var(--shadow-sm); transform: translate(-1px, -1px); }
+.btn:active { box-shadow: none; transform: translate(1px, 1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-primary {
+  background: var(--accent); font-size: 19px; font-weight: 800;
+  padding: 14px 28px; border-radius: 10px; box-shadow: var(--shadow);
+}
+.btn-primary:hover { box-shadow: 7px 7px 0 var(--ink); }
+.btn-ghost { background: transparent; }
+
+/* Segmented control */
+.seg { display: flex; gap: 8px; }
+.seg button {
+  flex: 1; font-size: 15px; font-weight: 700; padding: 12px; min-height: 44px;
+  background: var(--paper-2); border: var(--line); border-radius: var(--radius-sm); cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--select); font-weight: 800; box-shadow: var(--shadow-sm); }
+
+.card {
+  background: var(--paper-2); border: var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+}
+
+.field-label { font-size: 15px; font-weight: 800; }
+
+.input {
+  width: 100%; font-size: 15px; padding: 12px 14px; min-height: 44px;
+  background: var(--paper-2); border: var(--line); border-radius: var(--radius-sm);
+}
+textarea.input { font-family: var(--mono); font-size: 13px; line-height: 1.6; resize: none; }
+
+.chip {
+  width: 14px; height: 14px; border-radius: 3px; border: var(--line); flex: none;
+}
+
+.progress {
+  height: 18px; border: var(--line); border-radius: 6px; overflow: hidden; background: var(--paper);
+}
+.progress > div {
+  height: 100%;
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 10px, #c94a20 10px 20px);
+  border-right: var(--line);
+  transition: width 200ms;
+}
+
+.kbd {
+  font-size: 13px; font-weight: 700; padding: 3px 9px; border: var(--line); border-radius: 6px; white-space: nowrap;
+}
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: var(--ink-2); border: 3px solid var(--paper); border-radius: 8px; }

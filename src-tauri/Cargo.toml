@@ -1,0 +1,60 @@
+[package]
+name = "toolbox"
+version = "0.1.0"
+description = "Toolbox — 96 outils locaux"
+authors = ["Levellr"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "toolbox_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-global-shortcut = "2.4.1"
+tauri-plugin-single-instance = "2.5.5"
+tauri-plugin-dialog = "2.8.4"
+dirs = "7.0.0"
+chrono = "0.4.45"
+sha2 = "0.11.1"
+sha1 = "0.11.0"
+md-5 = "0.11.0"
+hex = "0.4.3"
+base64 = "0.23.1"
+image = { version = "=0.25.8", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "rayon", "tiff", "webp"] }
+oxipng = { version = "10.2.1", default-features = false, features = ["parallel", "zopfli"] }
+rxing = "0.9.4"
+zip = { version = "9.5.0", features = ["aes-crypto", "deflate"] }
+sevenz-rust2 = "0.25.0"
+tar = "0.4.46"
+flate2 = "1.1.11"
+trash = "5.3.0"
+walkdir = "2.5.0"
+blake3 = "1.8.7"
+rayon = "1.12.0"
+ureq = "3.5.1"
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[target."cfg(windows)".dependencies]
+arboard = "3.7.0"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_NetworkManagement_WiFi", "Win32_System_Power", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_Devices_Display", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Threading", "Win32_System_LibraryLoader", "Win32_System_DataExchange", "Media_Ocr", "Media_FaceAnalysis", "Media_SpeechSynthesis", "Media_Core", "Graphics_Imaging", "Storage", "Storage_Streams", "Globalization", "Foundation", "Foundation_Collections"] }
+winreg = "0.56.0"
