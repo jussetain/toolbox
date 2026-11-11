@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { canvasToPng, copyPngToClipboard, imageFromPaste, loadImage, saveOutput, stem } from "../../lib/io";
+import { takeHandOff } from "../../lib/handoff";
 import { FileDrop } from "../../components/FileDrop";
 import { ErrorNote, Seg, Toggle } from "../../components/ui";
 
@@ -9,7 +10,7 @@ const IMG = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
 
 /** Source d'image : fichier déposé ou image collée (Ctrl+V). */
 function useImageSource() {
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<string[]>(() => { const p = takeHandOff(); return p ? [p] : []; });
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   const [name, setName] = useState("capture");
   const [error, setError] = useState<string | null>(null);

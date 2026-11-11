@@ -10,7 +10,6 @@ import { EngineGate } from "../../components/EngineGate";
 import { BatchResults, type BatchResult } from "../../components/BatchResults";
 import { OrderList } from "../../components/PdfParts";
 import { ErrorNote, Seg, Toggle } from "../../components/ui";
-import { TranscribeView } from "./AiTools";
 
 const VIDEO = ["mp4", "mov", "m4v", "mkv", "webm", "avi", "wmv", "flv", "mts", "m2ts", "3gp"];
 const AUDIO = ["mp3", "m4a", "wav", "flac", "aiff", "aif", "ogg", "opus", "aac", "wma"];
@@ -275,24 +274,6 @@ export function ExtractFrames() {
   );
 }
 
-// ── 2 Incruster des sous-titres ──
-export function BurnSubtitles() {
-  const [srt, setSrt] = useState<string | null>(null);
-  return (
-    <MediaBatch tool="burn-subtitles" accept={VIDEO} multiple={false} label="Glisse la vidéo" action="Incruster" op={{ op: "burnSubtitles", subtitles: srt ?? "" }} ready={!!srt}>
-      {(files) => (<>
-        {files[0] && !srt && <TranscribeView key={files[0]} path={files[0]} onDone={(t) => setSrt(t.srt)} />}
-        <div className="row">
-          <button className="btn" onClick={async () => { const p = await open({ filters: [{ name: "Sous-titres", extensions: ["srt", "vtt", "ass"] }] }); if (typeof p === "string") setSrt(p); }}>
-            {srt ? `Sous-titres : ${basename(srt)}` : "Choisir le fichier de sous-titres…"}
-          </button>
-          {!srt && <span className="muted">ou génère-les automatiquement ci-dessus.</span>}
-        </div>
-      </>)}
-    </MediaBatch>
-  );
-}
-
 // ── 12 Fusionner ──
 export function MergeVideos() {
   const [files, setFiles] = useState<string[]>([]);
@@ -407,6 +388,24 @@ export function TrimAudio() {
   return (
     <MediaBatch tool="trim-audio" accept={AUDIO} multiple={false} action="Couper" op={{ op: "trimAudio", start: range[0], end: range[1] }} ready={range[1] > range[0]}>
       {(files) => files[0] && <RangePlayer key={files[0]} path={files[0]} audio start={range[0]} end={range[1]} onChange={(s, e) => setRange([s, e])} />}
+    </MediaBatch>
+  );
+}
+
+// ── Normaliser le volume ──
+export function NormalizeAudio() {
+  const [target, setTarget] = useState(-14);
+  return (
+    <MediaBatch tool="normalize-audio" accept={[...AUDIO, ...VIDEO]} action="Normaliser" op={{ op: "normalizeAudio", target }}>
+      {() => (
+        <>
+          <div className="field">
+            <span className="field-label">Destination</span>
+            <Seg label="Destination" value={target} onChange={setTarget} options={[{ id: -14, label: "Web et réseaux (−14 LUFS)" }, { id: -16, label: "Podcast (−16 LUFS)" }, { id: -23, label: "TV (−23 LUFS)" }]} />
+          </div>
+          <p className="muted" style={{ margin: 0 }}>Les passages trop faibles sont remontés, les trop forts contenus, sans saturation. Pour une vidéo, l'image est gardée telle quelle.</p>
+        </>
+      )}
     </MediaBatch>
   );
 }

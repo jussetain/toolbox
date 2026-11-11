@@ -6,3 +6,5 @@ pub mod media;
 pub mod convert;
 pub mod system;
 pub mod ai;
+pub mod capture;
+pub mod monitor;

@@ -55,7 +55,7 @@ pub fn transcribe(app: AppHandle, path: String, language: String) -> Result<u64,
         let base = output::unique_path(&dir, &stem);
         ctx.stage(1, "Chargement du modèle de reconnaissance vocale…");
         let mut c = engines::command(&wh);
-        c.arg("-m").arg(&model).arg("-f").arg(&wav).args(["-l", if language.is_empty() { "auto" } else { &language }, "-otxt", "-osrt", "-ovtt", "-pp", "-t", &threads().to_string(), "-of"]).arg(&base);
+        c.arg("-m").arg(&model).arg("-f").arg(&wav).args(["-l", if language.is_empty() { "auto" } else { &language }, "-otxt", "-osrt", "-ovtt", "-ojf", "-pp", "-t", &threads().to_string(), "-of"]).arg(&base);
         let r = engines::run(ctx, c, |l| {
             if let Some(p) = whisper_progress(l) { ctx.progress(Some(p), format!("Écoute et transcription · {:.0} %", p * 100.0)); }
         });
@@ -63,7 +63,10 @@ pub fn transcribe(app: AppHandle, path: String, language: String) -> Result<u64,
         r?;
         let p = |ext: &str| PathBuf::from(format!("{}.{ext}", base.display()));
         let text = std::fs::read_to_string(p("txt")).unwrap_or_default();
-        Ok(json!({ "text": text.trim(), "txt": p("txt").display().to_string(), "srt": p("srt").display().to_string(), "vtt": p("vtt").display().to_string() }))
+        // Le JSON (temps de chaque mot) sert aux sous-titres : il ne reste pas dans le dossier de sortie.
+        let words = std::env::temp_dir().join(format!("toolbox-words-{}-{}.json", std::process::id(), ctx.id()));
+        let words = if std::fs::rename(p("json"), &words).is_ok() || std::fs::copy(p("json"), &words).map(|_| std::fs::remove_file(p("json"))).is_ok() { words } else { p("json") };
+        Ok(json!({ "text": text.trim(), "txt": p("txt").display().to_string(), "srt": p("srt").display().to_string(), "vtt": p("vtt").display().to_string(), "json": words.display().to_string() }))
     }))
 }
 
@@ -209,6 +212,7 @@ pub fn capture_text(app: AppHandle, language: Option<String>) -> u64 {
         { let _ = (&language, ctx); Err(JobError::Failed(WINDOWS_ONLY.into())) }
         #[cfg(windows)]
         {
+            ctx.stages(&["Capture", "Lecture du texte"]);
             let png = win::snip(ctx)?;
             ctx.stage(1, "Reconnaissance du texte…");
             let r = win::ocr(&png, language.as_deref()).map_err(JobError::Failed);
@@ -217,6 +221,9 @@ pub fn capture_text(app: AppHandle, language: Option<String>) -> u64 {
         }
     })
 }
+
+#[cfg(windows)]
+pub(crate) use win::snip;
 
 #[cfg(windows)]
 mod win {
@@ -307,8 +314,7 @@ mod win {
         use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
         let seq = unsafe { GetClipboardSequenceNumber() };
         crate::engines::command(Path::new("explorer.exe")).arg("ms-screenclip:").spawn()?;
-        ctx.stages(&["Capture", "Lecture du texte"]);
-        ctx.stage(0, "Sélectionne une zone de l'écran…");
+        ctx.progress(None, "Sélectionne une zone de l'écran…");
         let t0 = Instant::now();
         loop {
             ctx.check()?;

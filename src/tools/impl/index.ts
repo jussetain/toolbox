@@ -19,13 +19,16 @@ const docs = () => import("./DocConvert") as unknown as Promise<Mod>;
 const sys = () => import("./SystemTools") as unknown as Promise<Mod>;
 const ai = () => import("./AiTools") as unknown as Promise<Mod>;
 const imgai = () => import("./ImageAi") as unknown as Promise<Mod>;
+const subs = () => import("./Subtitles") as unknown as Promise<Mod>;
+const added = () => import("./AddedTools") as unknown as Promise<Mod>;
+const monitor = () => import("./SystemMonitor") as unknown as Promise<Mod>;
 const hash = () => import("./HashGenerator").then((m) => ({ HashGenerator: m.default }));
 
 /** Outils implémentés, par identifiant du registre. Les autres affichent « Bientôt ». */
 export const implementations: Record<string, LazyExoticComponent<ComponentType>> = {
   // Vidéo
   "download-video": from(media, "DownloadVideo"),
-  "burn-subtitles": from(media, "BurnSubtitles"),
+  "burn-subtitles": from(subs, "BurnSubtitles"),
   "change-speed": from(media, "ChangeSpeed"),
   "extract-frames": from(media, "ExtractFrames"),
   "record-screen": from(rec, "RecordScreen"),
@@ -45,7 +48,10 @@ export const implementations: Record<string, LazyExoticComponent<ComponentType>>
   "trim-audio": from(media, "TrimAudio"),
   "extract-audio": from(media, "ExtractAudio"),
   "convert-audio": from(media, "ConvertAudio"),
+  "normalize-audio": from(media, "NormalizeAudio"),
   // Images
+  screenshot: from(added, "Screenshot"),
+  "crop-images": from(added, "CropImages"),
   "blur-faces": from(imgai, "BlurFaces"),
   "remove-background": from(imgai, "RemoveBackground"),
   "color-picker": from(imgai, "ColorPicker"),
@@ -70,6 +76,7 @@ export const implementations: Record<string, LazyExoticComponent<ComponentType>>
   "delete-pages": from(pdf, "DeletePages"),
   "extract-pages": from(pdf, "ExtractPages"),
   "images-to-pdf": from(pdf, "ImagesToPdf"),
+  "stamp-pdf": from(added, "StampPdf"),
   "crop-pdf": from(pdf, "CropPdf"),
   "compress-pdf": from(pdf, "CompressPdf"),
   "add-password": from(pdf, "AddPassword"),
@@ -98,6 +105,7 @@ export const implementations: Record<string, LazyExoticComponent<ComponentType>>
   "zip-unzip": from(files, "ZipUnzip"),
   "organize-downloads": from(files, "OrganizeDownloads"),
   // Système
+  "system-monitor": from(monitor, "SystemMonitor"),
   "speed-test": from(sys, "SpeedTest"),
   "storage-explorer": from(sys, "StorageExplorer"),
   "wifi-password": from(sys, "WifiPassword"),
@@ -118,6 +126,7 @@ export const implementations: Record<string, LazyExoticComponent<ComponentType>>
   "json-formatter": from(dev, "JsonFormatter"),
   base64: from(dev, "Base64Tool"),
   "hash-generator": from(hash, "HashGenerator"),
+  "password-generator": from(added, "PasswordGenerator"),
   "uuid-generator": from(dev, "UuidGenerator"),
   "jwt-decoder": from(dev, "JwtDecoder"),
   "timestamp-converter": from(dev, "TimestampConverter"),

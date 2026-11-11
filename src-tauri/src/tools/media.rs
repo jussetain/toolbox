@@ -31,6 +31,8 @@ pub enum MediaOp {
     ConvertAudio { format: String, bitrate: u32 },
     TrimAudio { start: f64, end: f64 },
     CleanAudio { strength: String },
+    /// Volume perçu ramené à une cible (LUFS).
+    NormalizeAudio { target: f64 },
     /// Enregistrement du navigateur (WebM) → format courant.
     ConvertRecording { format: String },
 }
@@ -83,10 +85,15 @@ pub fn atempo_chain(mut f: f64) -> String {
     parts.join(",")
 }
 
-/// Chemin dans un graphe de filtres FFmpeg (subtitles=…) : « C:\a b\s.srt » → « C\:/a b/s.srt » entre quotes.
+/// Chemin dans un graphe de filtres FFmpeg (subtitles=…), avec ses deux niveaux d'échappement :
+/// valeur d'option (\ ' :) puis graphe (\ ' [ ] , ;). « C:\a b\l'été.srt » → « C\\:/a b/l\\\'été.srt ».
 pub fn filter_path(p: &str) -> String {
-    let s = p.replace('\\', "/").replace(':', "\\:").replace('\'', "\\'");
-    format!("'{s}'")
+    let esc = |s: &str, special: &str| s.chars().fold(String::new(), |mut o, c| {
+        if special.contains(c) { o.push('\\'); }
+        o.push(c);
+        o
+    });
+    esc(&esc(&p.replace('\\', "/"), "\\':"), "\\'[],;")
 }
 
 fn audio_codec(format: &str, bitrate: u32) -> Vec<String> {
@@ -237,7 +244,12 @@ pub fn build(op: &MediaOp, p: &Probe, in_ext: &str, gpu_encoder: Option<&str>) -
             format.clone()
         }
         MediaOp::BurnSubtitles { subtitles } => {
-            vf.push(format!("subtitles={}:force_style='FontName=Arial,FontSize=22,Outline=2'", filter_path(subtitles)));
+            // Un fichier ASS porte son propre style (police, taille, position…) : on le respecte.
+            if subtitles.to_lowercase().ends_with(".ass") {
+                vf.push(format!("subtitles={}", filter_path(subtitles)));
+            } else {
+                vf.push(format!("subtitles={}:force_style='FontName=Arial,FontSize=22,Outline=2'", filter_path(subtitles)));
+            }
             a.extend(x264(20));
             a.extend(if p.has_audio { vec![s("-c:a"), s("copy")] } else { vec![] });
             video_ext
@@ -270,7 +282,22 @@ pub fn build(op: &MediaOp, p: &Probe, in_ext: &str, gpu_encoder: Option<&str>) -
         }
         MediaOp::CleanAudio { strength } => {
             let nr = match strength.as_str() { "light" => 12, "strong" => 30, _ => 20 };
-            a.extend([s("-af"), format!("highpass=f=70,afftdn=nr={nr}:nf=-30:tn=1,lowpass=f=14000,loudnorm=I=-16:TP=-1.5:LRA=11")]);
+            // loudnorm suréchantillonne à 192 kHz : on revient à 48 kHz.
+            a.extend([s("-af"), format!("highpass=f=70,afftdn=nr={nr}:nf=-30:tn=1,lowpass=f=14000,loudnorm=I=-16:TP=-1.5:LRA=11"), s("-ar"), s("48000")]);
+            if p.has_video {
+                a.extend(["-c:v", "copy"].map(String::from));
+                a.extend(aac());
+                video_ext
+            } else {
+                let fmt = if matches!(in_ext, "mp3" | "m4a" | "wav" | "flac") { in_ext.to_string() } else { s("m4a") };
+                a.extend(audio_codec(&fmt, 192));
+                fmt
+            }
+        }
+        MediaOp::NormalizeAudio { target } => {
+            if !p.has_audio { return Err(s("Ce fichier n'a pas de piste audio.")); }
+            if !(-30.0..=-5.0).contains(target) { return Err(s("Cible entre −30 et −5 LUFS.")); }
+            a.extend([s("-af"), format!("loudnorm=I={target}:TP=-1.0:LRA=11"), s("-ar"), s("48000")]);
             if p.has_video {
                 a.extend(["-c:v", "copy"].map(String::from));
                 a.extend(aac());
@@ -521,7 +548,7 @@ mod tests {
     fn crop_rotate_and_paths() {
         let (a, _, _) = build(&MediaOp::CropRotate { rotate: 90, flip_h: true, flip_v: false, crop: Some([0.1, 0.0, 0.5, 0.5]) }, &p(), "mp4", None).unwrap();
         assert_eq!(a[1], "crop=960:540:192:0,transpose=1,hflip");
-        assert_eq!(filter_path(r"C:\Vidéos\l'été.srt"), r"'C\:/Vidéos/l\'été.srt'");
+        assert_eq!(filter_path(r"C:\Vidéos\l'été, 2.srt"), r"C\\:/Vidéos/l\\\'été\, 2.srt");
         assert_eq!(progress_seconds("out_time_us=2500000"), Some(2.5));
     }
 
@@ -532,6 +559,14 @@ mod tests {
         assert!(a.contains(&"libmp3lame".to_string()));
         let noaudio = Probe { has_audio: false, ..p() };
         assert!(build(&MediaOp::ExtractAudio { format: "mp3".into() }, &noaudio, "mp4", None).is_err());
+        let (a, ext, _) = build(&MediaOp::NormalizeAudio { target: -16.0 }, &p(), "mov", None).unwrap();
+        assert_eq!(ext, "mov");
+        assert!(a.windows(2).any(|w| w == ["-c:v", "copy"]) && a.windows(2).any(|w| w == ["-ar", "48000"]));
+        let (_, ext, _) = build(&MediaOp::NormalizeAudio { target: -16.0 }, &Probe { has_video: false, ..p() }, "ogg", None).unwrap();
+        assert_eq!(ext, "m4a");
+        assert!(build(&MediaOp::NormalizeAudio { target: 0.0 }, &p(), "mp4", None).is_err());
+        let (a, _, _) = build(&MediaOp::BurnSubtitles { subtitles: r"C:\s\x.ASS".into() }, &p(), "mp4", None).unwrap();
+        assert_eq!(a[1], r"subtitles=C\\:/s/x.ASS");
         let (_, ext, _) = build(&MediaOp::ConvertRecording { format: "mp4".into() }, &p(), "webm", None).unwrap();
         assert_eq!(ext, "mp4");
         let rec = Probe { has_video: false, ..p() };
@@ -552,6 +587,8 @@ mod tests {
         assert!(ok);
         let srt = dir.join("s t.srt");
         std::fs::write(&srt, "1\n00:00:00,000 --> 00:00:01,500\nBonjour\n").unwrap();
+        let ass = dir.join("l'été, [v2].ass");
+        std::fs::write(&ass, "[Script Info]\nScriptType: v4.00+\nPlayResX: 320\nPlayResY: 240\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,24,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,5,16,16,0,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{\\c&H0000D4FF}SALUT{\\c&H00FFFFFF} TOI\n").unwrap();
         let pr = probe(&fp, &src).ok().unwrap();
         assert!(pr.has_audio && pr.width == 320);
         let ops = vec![
@@ -568,6 +605,8 @@ mod tests {
             MediaOp::ExtractAudio { format: "mp3".into() },
             MediaOp::ConvertAudio { format: "flac".into(), bitrate: 192 },
             MediaOp::CleanAudio { strength: "balanced".into() },
+            MediaOp::NormalizeAudio { target: -14.0 },
+            MediaOp::BurnSubtitles { subtitles: ass.display().to_string() },
             MediaOp::ReplaceAudio { audio: src.display().to_string(), mix: true, volume: 0.5 },
         ];
         for (i, op) in ops.iter().enumerate() {

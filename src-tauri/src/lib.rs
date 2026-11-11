@@ -50,6 +50,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(jobs::Jobs::default())
         .manage(launcher::PendingTool::default())
+        .manage(tools::monitor::MonitorState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             let s = settings::load(&handle);
@@ -157,6 +158,9 @@ pub fn run() {
             tools::ai::tts_synthesize,
             tools::ai::capture_text,
             tools::images::images_process,
+            tools::capture::screen_capture,
+            tools::monitor::system_snapshot,
+            tools::monitor::process_kill,
             tools::images::image_info,
             tools::fileops::read_file_bytes,
             tools::fileops::save_output,

@@ -33,7 +33,7 @@ export const categoryById = Object.fromEntries(
 ) as Record<CategoryId, Category>;
 
 export interface Tool {
-  /** Numéro 1–96, stable. */
+  /** Numéro d'ordre (dans l'ordre du catalogue). */
   n: number;
   id: string;
   category: CategoryId;
@@ -69,14 +69,17 @@ const rows: Record<CategoryId, Row[]> = {
     ["trim-audio", "Couper un audio", "Garde seulement la partie voulue", "trim"],
     ["extract-audio", "Extraire l'audio", "Enregistre la bande-son d'une vidéo", "mp3"],
     ["convert-audio", "Convertir un audio", "En MP3, M4A, WAV, FLAC ou AIFF", "mp3 wav flac"],
+    ["normalize-audio", "Normaliser le volume", "Même niveau sonore partout, aux normes web, podcast ou TV", "loudnorm lufs volume niveau"],
   ],
   images: [
+    ["screenshot", "Capture d'écran", "Zone, fenêtre ou écran entier, avec retardateur", "screenshot capture ecran impr"],
     ["blur-faces", "Flouter les visages", "Détecte les visages et les floute, pixelise ou masque", "anonymiser"],
     ["beautify-screenshot", "Embellir une capture", "Fond, marge, coins arrondis et ombre", "screenshot"],
     ["remove-background", "Supprimer l'arrière-plan", "Détoure le sujet, fond transparent ou uni", "detourer fond"],
     ["convert-images", "Convertir des images", "En JPEG, PNG, HEIC, TIFF ou WebP", "jpg png webp heic"],
     ["compress-images", "Compresser des images", "Plus léger, sans perte visible", "reduire"],
     ["resize-images", "Redimensionner des images", "Par pourcentage, côté long ou taille exacte", "resize"],
+    ["crop-images", "Recadrer des images", "Zone libre ou format imposé (1:1, 16:9, 9:16…)", "crop rogner format carre"],
     ["rotate-images", "Pivoter des images", "Pivote ou retourne plusieurs photos d'un coup", "rotate"],
     ["remove-metadata", "Supprimer les métadonnées", "Retire position GPS, appareil et date", "exif gps"],
     ["color-picker", "Pipette", "Prend une couleur à l'écran, en HEX, RGB, HSL ou code", "couleur color"],
@@ -96,6 +99,7 @@ const rows: Record<CategoryId, Row[]> = {
     ["delete-pages", "Supprimer des pages", "Retire les pages inutiles", ""],
     ["extract-pages", "Extraire des pages", "Enregistre une sélection de pages en nouveau PDF", ""],
     ["images-to-pdf", "Images vers PDF", "Transforme photos et scans en un PDF", ""],
+    ["stamp-pdf", "Filigrane et numéros de page", "Ajoute un filigrane texte et numérote les pages", "watermark tampon pagination numeroter"],
     ["crop-pdf", "Recadrer un PDF", "Réduit la taille des pages", "crop"],
     ["compress-pdf", "Compresser un PDF", "Recompresse les images du document", "reduire"],
     ["add-password", "Ajouter un mot de passe", "Protège un PDF, limite impression et copie", "chiffrer"],
@@ -127,6 +131,7 @@ const rows: Record<CategoryId, Row[]> = {
     ["organize-downloads", "Ranger les téléchargements", "Trie les images téléchargées par site d'origine", "trier"],
   ],
   system: [
+    ["system-monitor", "Moniteur de ressources", "Processeur, mémoire, disques, réseau et applis gourmandes", "cpu ram memoire processus task manager gestionnaire"],
     ["speed-test", "Test de débit", "Mesure descendante, montante et réactivité", "internet vitesse"],
     ["storage-explorer", "Explorateur de stockage", "Ce qui remplit le disque, et nettoyage sûr", "disque espace"],
     ["wifi-password", "Mot de passe Wi-Fi + QR", "Affiche un mot de passe Wi-Fi enregistré et son QR code", "wifi"],
@@ -148,6 +153,7 @@ const rows: Record<CategoryId, Row[]> = {
     ["json-formatter", "Formateur JSON", "Indente, minifie et valide du JSON", "json"],
     ["base64", "Base64", "Encode et décode texte et fichiers", "encode decode"],
     ["hash-generator", "Générateur de hash", "MD5, SHA-1, SHA-256, SHA-512, et comparaison", "checksum sha md5"],
+    ["password-generator", "Générateur de mots de passe", "Mots de passe et phrases de passe aléatoires, avec leur robustesse", "password mdp secret aleatoire"],
     ["uuid-generator", "Générateur d'UUID", "UUID v4 ou v7 en série, et inspection", "guid"],
     ["jwt-decoder", "Décodeur JWT", "En-tête, claims, expiration et signature HMAC", "token"],
     ["timestamp-converter", "Convertisseur de timestamp", "Timestamps Unix ↔ dates, fuseaux horaires", "epoch date"],

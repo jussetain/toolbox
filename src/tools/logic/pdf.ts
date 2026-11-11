@@ -1,5 +1,5 @@
 // Opérations PDF pures (pdf-lib) : testables hors navigateur.
-import { degrees, PDFDocument, PDFName, PDFRawStream, PDFNumber, type PDFPage } from "@cantoo/pdf-lib";
+import { degrees, PDFDocument, PDFName, PDFRawStream, PDFNumber, rgb, StandardFonts, type PDFPage } from "@cantoo/pdf-lib";
 
 export type Bytes = Uint8Array;
 export interface NamedBytes { name: string; bytes: Bytes }
@@ -296,6 +296,74 @@ export async function addTextLayer(bytes: Bytes, pages: { words: OcrWord[]; widt
       const unit = font.widthOfTextAtSize(text, 1) || 1;
       const size = Math.max(1, Math.min(width / unit, w.h * sy * 1.2));
       page.drawText(text, { x: box.x + w.x * sx, y: box.y + box.height - (w.y + w.h) * sy + w.h * sy * 0.15, size, font, opacity: 0 });
+    }
+  });
+  return doc.save({ useObjectStreams: true });
+}
+
+// ── Filigrane et numéros de page ────────────────────────────────────────────
+
+export interface Watermark { text: string; size: number; opacity: number; color: string; angle: number }
+export type NumberPos = "bottom-center" | "bottom-right" | "bottom-left" | "top-center" | "top-right" | "top-left";
+export interface PageNumbers { position: NumberPos; format: string; start: number; skipFirst: boolean; size: number }
+
+/** « {n} / {total} » → texte de la page. */
+export const numberText = (format: string, n: number, total: number) => format.replace(/\{n\}/g, String(n)).replace(/\{total\}/g, String(total));
+
+/**
+ * Point vu à l'écran (u, v en points depuis le coin bas-gauche visible) → coordonnées PDF de la page,
+ * en tenant compte de la rotation de la page ; l'angle du texte est corrigé pour rester lisible.
+ */
+export function placeOnPage(box: { x: number; y: number; width: number; height: number }, rotation: number, u: number, v: number, angle = 0) {
+  const W = box.width, H = box.height;
+  switch (((rotation % 360) + 360) % 360) {
+    case 90: return { x: box.x + W - v, y: box.y + u, angle: angle + 90 };
+    case 180: return { x: box.x + W - u, y: box.y + H - v, angle: angle + 180 };
+    case 270: return { x: box.x + v, y: box.y + H - u, angle: angle + 270 };
+    default: return { x: box.x + u, y: box.y + v, angle };
+  }
+}
+
+const hexRgb = (hex: string) => {
+  const h = hex.replace("#", "");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+};
+
+export async function stampText(bytes: Bytes, opts: { watermark?: Watermark; numbers?: PageNumbers }, password?: string): Promise<Bytes> {
+  const doc = await load(bytes, password);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  // Les polices standard ne couvrent que le jeu Windows-1252 (accents français compris).
+  const clean = (font: typeof bold, s: string) => { const ok = new Set(font.getCharacterSet()); return [...s].filter((c) => ok.has(c.codePointAt(0)!)).join(""); };
+  const pages = doc.getPages();
+  const skip = opts.numbers?.skipFirst ? 1 : 0;
+  const total = pages.length - skip + (opts.numbers?.start ?? 1) - 1;
+  pages.forEach((page, i) => {
+    const box = page.getCropBox();
+    const rot = page.getRotation().angle;
+    const [vw, vh] = rot % 180 ? [box.height, box.width] : [box.width, box.height];
+    const wm = opts.watermark;
+    if (wm && wm.text.trim()) {
+      const text = clean(bold, wm.text);
+      const tw = bold.widthOfTextAtSize(text, wm.size);
+      const th = bold.heightAtSize(wm.size, { descender: false });
+      const a = (wm.angle * Math.PI) / 180;
+      // Centre du texte au centre de la page visible.
+      const u = vw / 2 - (tw / 2) * Math.cos(a) + (th / 2) * Math.sin(a);
+      const v = vh / 2 - (tw / 2) * Math.sin(a) - (th / 2) * Math.cos(a);
+      const p = placeOnPage(box, rot, u, v, wm.angle);
+      page.drawText(text, { x: p.x, y: p.y, size: wm.size, font: bold, color: rgb(...hexRgb(wm.color)), opacity: wm.opacity, rotate: degrees(p.angle) });
+    }
+    const nb = opts.numbers;
+    if (nb && i >= skip) {
+      const text = clean(regular, numberText(nb.format, nb.start + i - skip, total));
+      const tw = regular.widthOfTextAtSize(text, nb.size);
+      const m = Math.max(18, nb.size * 2);
+      const [vert, horiz] = nb.position.split("-");
+      const u = horiz === "left" ? m : horiz === "right" ? vw - m - tw : (vw - tw) / 2;
+      const v = vert === "top" ? vh - m - nb.size * 0.7 : m;
+      const p = placeOnPage(box, rot, u, v);
+      page.drawText(text, { x: p.x, y: p.y, size: nb.size, font: regular, color: rgb(0.12, 0.11, 0.09), rotate: degrees(p.angle) });
     }
   });
   return doc.save({ useObjectStreams: true });

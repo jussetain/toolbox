@@ -49,6 +49,8 @@ pub enum ImageOp {
     #[serde(rename_all = "camelCase")]
     Rotate { degrees: i32, flip_h: bool, flip_v: bool },
     StripMetadata,
+    /// Zone relative [x, y, l, h] (0–1) et/ou format imposé (largeur / hauteur).
+    Crop { rect: Option<[f64; 4]>, ratio: Option<f64> },
 }
 
 #[derive(Serialize)]
@@ -209,6 +211,27 @@ fn resize(img: DynamicImage, mode: ResizeMode, percent: Option<u32>, w: Option<u
     }
 }
 
+/// Zone à garder (pixels) : la zone tracée, ramenée au format s'il y en a un, ou le plus grand cadre centré au format.
+pub fn crop_box(iw: u32, ih: u32, rect: Option<[f64; 4]>, ratio: Option<f64>) -> Result<(u32, u32, u32, u32), String> {
+    let (iwf, ihf) = (iw as f64, ih as f64);
+    let (mut x, mut y, mut w, mut h) = match rect {
+        Some([rx, ry, rw, rh]) => (rx.clamp(0.0, 1.0) * iwf, ry.clamp(0.0, 1.0) * ihf, rw.clamp(0.0, 1.0) * iwf, rh.clamp(0.0, 1.0) * ihf),
+        None if ratio.is_some() => (0.0, 0.0, iwf, ihf),
+        None => return Err("Trace une zone ou choisis un format.".into()),
+    };
+    if let Some(r) = ratio.filter(|r| *r > 0.0) {
+        // Plus grand cadre au bon format, centré dans la zone.
+        let (nw, nh) = if w / h > r { (h * r, h) } else { (w, w / r) };
+        x += (w - nw) / 2.0;
+        y += (h - nh) / 2.0;
+        w = nw;
+        h = nh;
+    }
+    let (x, y) = (x.round().min(iwf - 1.0) as u32, y.round().min(ihf - 1.0) as u32);
+    let (w, h) = ((w.round() as u32).clamp(1, iw - x), (h.round() as u32).clamp(1, ih - y));
+    Ok((x, y, w, h))
+}
+
 fn process_one(path: &Path, op: &ImageOp, dir: &Path) -> Result<(PathBuf, Option<String>), String> {
     let original = std::fs::read(path).map_err(|e| e.to_string())?;
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("image").to_string();
@@ -268,6 +291,12 @@ fn process_one(path: &Path, op: &ImageOp, dir: &Path) -> Result<(PathBuf, Option
             if *flip_v { img = img.flipv(); }
             let f = fmt.and_then(Fmt::from_image).unwrap_or(Fmt::Png);
             (encode(&img, f, 92)?, if f == Fmt::Jpeg && !in_ext.is_empty() { in_ext.clone() } else { f.ext().into() })
+        }
+        ImageOp::Crop { rect, ratio } => {
+            let (img, fmt, _) = open_oriented(path)?;
+            let (x, y, w, h) = crop_box(img.width(), img.height(), *rect, *ratio)?;
+            let f = fmt.and_then(Fmt::from_image).unwrap_or(Fmt::Png);
+            (encode(&img.crop_imm(x, y, w, h), f, 92)?, if f == Fmt::Jpeg && !in_ext.is_empty() { in_ext.clone() } else { f.ext().into() })
         }
     };
 
@@ -359,6 +388,15 @@ mod tests {
         with.extend_from_slice(&chunk);
         with.extend_from_slice(&png[33..]);
         assert_eq!(strip_png(&with).unwrap(), png);
+    }
+
+    #[test]
+    fn crop_boxes() {
+        assert_eq!(crop_box(400, 200, None, Some(1.0)).unwrap(), (100, 0, 200, 200));
+        assert_eq!(crop_box(400, 200, Some([0.5, 0.5, 0.5, 0.5]), None).unwrap(), (200, 100, 200, 100));
+        assert_eq!(crop_box(400, 200, Some([0.0, 0.0, 1.0, 1.0]), Some(16.0 / 9.0)).unwrap(), (22, 0, 356, 200));
+        assert_eq!(crop_box(100, 100, Some([0.9, 0.9, 0.5, 0.5]), None).unwrap(), (90, 90, 10, 10));
+        assert!(crop_box(100, 100, None, None).is_err());
     }
 
     #[test]

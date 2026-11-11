@@ -1,6 +1,6 @@
 # Toolbox
 
-96 outils locaux pour Windows dans une seule app : vidéo, audio, images, PDF, texte, fichiers, système, dev.
+102 outils locaux pour Windows dans une seule app : vidéo, audio, images, PDF, texte, fichiers, système, dev.
 Lanceur global `Ctrl + Maj + Espace`. Les résultats vont dans `Téléchargements\Toolbox\AAAA-MM-JJ`.
 
 ## Stack
@@ -12,7 +12,7 @@ Lanceur global `Ctrl + Maj + Espace`. Les résultats vont dans `Téléchargement
 
 | Chemin | Rôle |
 | --- | --- |
-| `src/tools/registry.ts` | Les 96 outils (id, catégorie, nom, description) |
+| `src/tools/registry.ts` | Les 102 outils (id, catégorie, nom, description) |
 | `src/tools/impl/` | Interfaces des outils implémentés ; `index.ts` les déclare |
 | `src/Launcher.tsx` | Fenêtre du lanceur (label `launcher`) |
 | `src-tauri/src/jobs.rs` | Tâches longues : thread, progression (événement `job`), annulation |

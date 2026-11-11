@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, StandardFonts } from "@cantoo/pdf-lib";
-import { crop, fillForm, listFields, merge, pageCount, parseRanges, protect, selectPages, split, unlock } from "./pdf";
+import { crop, fillForm, listFields, merge, numberText, pageCount, parseRanges, placeOnPage, protect, selectPages, split, stampText, unlock } from "./pdf";
 
 async function makePdf(pages: number, withForm = false) {
   const doc = await PDFDocument.create();
@@ -60,5 +60,22 @@ describe("PDF", () => {
     expect(f[1]).toMatchObject({ value: true });
     const flat = await fillForm(src, { nom: "Justin" }, true);
     expect(await listFields(flat)).toEqual([]);
+  });
+
+  it("filigrane et numéros de page", async () => {
+    expect(numberText("Page {n} sur {total}", 2, 9)).toBe("Page 2 sur 9");
+    const box = { x: 0, y: 0, width: 200, height: 300 };
+    // Page tournée de 90° : le coin bas-gauche visible est le coin bas-droit de la page.
+    expect(placeOnPage(box, 90, 0, 0)).toEqual({ x: 200, y: 0, angle: 90 });
+    expect(placeOnPage(box, 270, 10, 0)).toEqual({ x: 0, y: 290, angle: 270 });
+    expect(placeOnPage(box, 0, 5, 6, 45)).toEqual({ x: 5, y: 6, angle: 45 });
+    const src = await PDFDocument.load(await makePdf(3));
+    src.getPage(1).setRotation({ type: "degrees", angle: 90 } as never);
+    const out = await stampText(await src.save(), {
+      watermark: { text: "CONFIDENTIEL — été 🚀", size: 40, opacity: 0.2, color: "#E5574F", angle: 45 },
+      numbers: { position: "bottom-right", format: "{n} / {total}", start: 1, skipFirst: true, size: 10 },
+    });
+    expect(await pageCount(out)).toBe(3);
+    expect(out.length).toBeGreaterThan((await src.save()).length);
   });
 });

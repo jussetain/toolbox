@@ -161,7 +161,7 @@ export function OcrPdf() {
 
 // ── 55 Transcrire ──
 const SPEECH_LANGS = [{ id: "auto", label: "Détection auto" }, { id: "fr", label: "Français" }, { id: "en", label: "Anglais" }, { id: "es", label: "Espagnol" }, { id: "de", label: "Allemand" }, { id: "it", label: "Italien" }, { id: "pt", label: "Portugais" }];
-export interface Transcript { text: string; txt: string; srt: string; vtt: string }
+export interface Transcript { text: string; txt: string; srt: string; vtt: string; json?: string }
 
 export function TranscribeView({ path, onDone }: { path?: string; onDone?: (t: Transcript) => void }) {
   const [files, setFiles] = useState<string[]>(path ? [path] : []);
